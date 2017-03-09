@@ -2,7 +2,7 @@ Investigating the Financial Contributions to the 2016 Presidental Campaign withi
 ========================================================
 ##**Abstract:**
 
-American voted for Donald J. Trump to be the 45th president of the United States of American on November 8th, 2016. There has been many different contributing factors in his winning including financial support from donors across the country. In this project, I am interested in investigating the financial factor that could potentially contribute to the result of the 2016 presidential campaign. Specifically, I would like to focus on Washington state, in which Trump did not win its electoral vote. The reason why I am interested in Washington is simply because I am living here. I thought it would be interesting to know more about the political viewpoint of the state that I am living in. 
+American voted for Donald J. Trump to be the 45th president of the United States of American on November 8th, 2016. There has been many different contributing factors in his winning including financial support from donors across the country.In this project, I am interested in investigating the financial factor that could potentially contribute to the result of the 2016 presidential campaign. Specifically, I would like to focus on Washington state, in which Trump did not win its electoral vote. However, the first part of the report will also include data for the other candidates and then the focus will be shifted to only the two primary candidates later on. The reason why I am interested in Washington is simply because I am living here. I thought it would be interesting to know more about the political viewpoint of the state that I am living in. 
 
 ##**Data Exploratory Section:**
 
@@ -14,9 +14,10 @@ require(scales)
 require(dplyr)
 require(gridExtra)
 library(RColorBrewer)
+library(ggthemes)
 ```
 
-```{r echo=FALSE, Load_the_Data}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 #Description of all variables:
 # CMTE_ID           COMMITTEE ID                            S - skipped
 # CAND_ID           CANDIDATE ID                            S - skipped
@@ -38,38 +39,45 @@ library(RColorBrewer)
 # ELECTION_TP       ELECTION TYPE/PRIMARY GENERAL INDICATOR S - skipped
 
 # Load and clean up the Data
-washington_original<- read.table("P00000001_WA.csv", sep = ',', header= TRUE, row.names = NULL)
+washington_original<- read.table("P00000001_WA.csv", 
+                                 sep = ',', 
+                                 header= TRUE, 
+                                 row.names = NULL)
 colnames(washington_original) <- c(colnames(washington_original)[-1],"x")
 washington_original$x <- NULL
-washington <- subset(washington_original, washington_original$contb_receipt_amt>0 & washington_original$contb_receipt_amt<=2700)
-
-# Fix zipcode format
-washington$contbr_zip = strtrim(washington$contbr_zip, 5)
+washington <- subset(washington_original, 
+                     washington_original$contb_receipt_amt>0 &
+                       washington_original$contb_receipt_amt<=2700)
 ```
 
 ####**Data Structure**
-```{r echo=FALSE, Univariate_Plots}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 str(washington)
 summary(washington)
 ```
 The original dataset has 18 variables with 289901 observations. After looking through the dataset, I decided to make some filter steps since the contributing amount money from donors cannot be less than 0. Moreover, the contributing money cannot go over 2700 due to Federal Election Campaign Act: http://www.fec.gov/pages/fecrecord/2015/february/contriblimits20152016.shtml. After filtering, the new dataset, namely washington, has 18 variables with 287505 observations. 
 
-####**Density Plot**
+####**Density Plot versus Histogtam Plot**
 
-To start the exploratory data analysis, I generated a density plot to observe how the financial contributions allocating within the Washington state using geom_density of ggplot. 
+To start the exploratory data analysis, I generated a density plot to observe how the financial contributions allocating within the Washington state using geom_density of ggplot both in normal scale and log base 10 scale. 
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 ggplot(aes(x=washington$contb_receipt_amt), data=washington) +
   geom_density()+
-  labs(x="Contributed Amount of Money")+
-  ggtitle("Density Plot of Contributed Amount from All Cities in WA")
+  labs(x="Contributed Amount of Money IN $US")+
+  ggtitle("Density Plot of Contributed Amount in WA")
+
+ggplot(aes(x=washington$contb_receipt_amt), data=washington) +
+  geom_density()+
+  scale_x_log10()+
+  labs(x="Contributed Amount of Money in $US")+
+  ggtitle("Density Plot (log scale) of Contributed Amount in WA")
 ```
 
 According the density plot, the majority of all financial contributions are within the 1000 range. Only a few people donated over 2000, which could potentially be accounted by the upper-class group. This fact lead me to an interesting question: which city does most of financial contributions come from? Is it a particular city that has a higher donation than the others? To answer this question, I divided my dataset into two groups: one that has the contributed amount that is less than 2000 and the other would have the contributed amount that is greater than or equal to 2000. 
 
-####**Locate where large financial contributions are from**
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 less_2000 <- subset(washington, washington$contb_receipt_amt <2000)
 more_2000 <- subset(washington, washington$contb_receipt_amt >=2000)
 
@@ -82,20 +90,100 @@ names(more_2000_df)[1] = 'City'
 more_2000_df[which(more_2000_df$Freq == max(more_2000_df$Freq)),]
 ```
 
-Seattle has the majority of people who contributed more than $2000 to the presidential campaign with the frequency of 934. 
+Seattle has the majority of people who contributed more than $2000 to the presidential campaign with the frequency of 934. Furthermore, I want to observe the behavior of the contributed amount of money a bit clearer, so I establish a histogram plot instead. 
 
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(data = washington, aes(x = contb_receipt_amt)) +
+  geom_histogram(binwidth = 25, fill = "mediumpurple4", color = "black") +
+  scale_x_continuous()+
+  labs(x="Contributed Amount of Money in $US")+
+  ggtitle("Distribution of the Contributed Amount in WA")
+```
+
+The majority of contribution is once again confirmed to be within the range (0,1000). Specficially, below $250 is most observed. 
+
+####**Contribution Date histogram**
+```{r}
+washington$date <- as.Date(washington$contb_receipt_dt, format = "%d-%b-%y")
+elec_date <- as.Date("09-NOV-16", format = "%d-%b-%y")
+qplot(date, data = washington, geom = "histogram", binwidth=7) +
+  geom_vline(xintercept=as.numeric(elec_date), color="red") +
+      ggtitle("Contribution Date Histogram")
+```
+This histogram can give us a sense of when contributions were received relative to the election. Binwidth set to 7 so each bar represents a week and the red line is the election date. It appears to me that the histogram is bimodal distribution, which has its first peark at around March-June of 2016 and its second peak just before the election date. 
+
+####**Contributions Per Day by Candidate**
+```{r}
+contrib_per_day<- washington %>%
+  group_by(cand_nm) %>%
+  summarize(min = min(date), 
+            max = max(date), 
+            n=n()) %>%
+  mutate(days = max-min, 
+         contrib_per_day = n/as.numeric(days))
+
+ggplot(aes(x=cand_nm, y=contrib_per_day), data=contrib_per_day) +
+  geom_bar(stat="identity") +
+  coord_flip() +
+  labs(x="Contributions Per Day", y="Candidate Name")
+  ggtitle("Contribution Per Day in Race")
+```
+Bernie Sanders and Hillary Clinton have the most contributions per day within the Washington state. This fact signifies that they were the potential candidate the Democratic party within WA state. On the other hands, Donald Trump and Ted Cruz have nearly the same amount of contributions per day; therefore, they both could be the potential primary candidate within the GOP. However, one thing to be notices is that the contributions per day for the two prominent democratic candidates is much larger than that for candidates of the GOP. This could imply that Washington state has more democrats than republicans. 
+
+####**Contributions per day between the two primary candidates
+```{r}
+clinton_trump <- subset(washington, 
+                        washington$cand_id == "P00003392" | 
+                          washington$cand_id == "P80001571")
+
+contrib_per_day_clinton_trump<- clinton_trump %>%
+  group_by(cand_nm) %>%
+  summarize(min = min(date), 
+            max = max(date), 
+            n=n()) %>%
+  mutate(days = max-min, 
+         contrib_per_day = n/as.numeric(days))
+
+ggplot(aes(x=cand_nm, y=contrib_per_day), 
+       data=contrib_per_day_clinton_trump) +
+  geom_bar(stat="identity") +
+  coord_flip() +
+  labs(x="Contributions Per Day", y="Candidate Name")
+  ggtitle("Contribution Per Day in Race")
+```
+
+After zooming in the number of contributions per day between the two primary candidates, Hillary Clinton has a much higher number of contributions per day than Trump did. This could mean that she was more than likely to win the electoral vote in the Washington state than Trump could. 
+
+####**Locate where large financial contributions are from**
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+clinton_trump_city  <- clinton_trump %>%
+  group_by(cand_nm, contbr_city) %>%
+  tally(contb_receipt_amt) %>%
+  arrange(contbr_city)%>%
+  top_n(10)
+
+ggplot(aes(y=n, x=contbr_city, fill=cand_nm), data = clinton_trump_city)+
+  geom_bar(aes(color = cand_nm), stat = 'identity')+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  scale_y_log10()+
+  labs(x="city name", y= "total contributed amount in $US")+
+  ggtitle("Total Contribution by the Top 10 Cities")
+```
+
+The major financial contribution of Seattle to the presidential campaign is once again confirmed through the above bar plot. Moreover, based on the log10 scale, it seems that most cities within the Washington state such as Bellevue, Kirkland, Seattle, Redmond, OLympia, Tacoma and Vancouver donate money to both candidates. On the other hands, cities that are located near or on island donate most of their money to Hillary Clinton. This could potentially mean that there are more  living in these island areas. 
 
 Next, I would like to see if there are any different trends of the average contributing amount of money of all cities within the Washington state between the two primary candidates: Hillary Clinton and Donald Trump. In order to accomplish this, I have to create two different datasets, namely hillary_clinton and donald_trump, using the candidate id. Next, I calculate the mean of the contributing amount of money from each city for each candidate.
 
 ####**Average Contribution by City**
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 hillary_clinton <- subset(washington, washington$cand_id == "P00003392")
 donald_trump <- subset(washington, washington$cand_id == "P80001571")
 
 clinton_by_city <- hillary_clinton %>%
   group_by(contbr_city) %>%
-  dplyr :: summarise(mean_amt=mean(contb_receipt_amt),
+  summarise(mean_amt=mean(contb_receipt_amt),
             median_amt=median(contb_receipt_amt),
             min_amt = min(contb_receipt_amt),
             max_amt = max(contb_receipt_amt), 
@@ -104,7 +192,7 @@ clinton_by_city <- hillary_clinton %>%
 
 trump_by_city <- donald_trump %>%
   group_by(contbr_city) %>%
-  dplyr:: summarise(mean_amt=mean(contb_receipt_amt),
+  summarise(mean_amt=mean(contb_receipt_amt),
             median_amt=median(contb_receipt_amt),
             min_amt = min(contb_receipt_amt),
             max_amt = max(contb_receipt_amt), 
@@ -125,7 +213,9 @@ plot2 <- ggplot(aes(mean_amt), data=trump_by_city)+
   scale_y_continuous(limits = c(0,150))+
   theme_classic()+
   geom_histogram(bins = 100)
-grid.arrange(plot1, plot2, ncol = 2, top = textGrob("Average Contributed Amount by City", gp=gpar(fontsize=20, font=2)))
+grid.arrange(plot1, plot2, ncol = 2, 
+             top = textGrob("Average Contributed Amount by City", 
+                            gp=gpar(fontsize=13, font=2)))
 ```
 
 In comparison between the two plots generated for the average contributed amount by city of the two primary candidate, Donald Trump seems to have more donors who were willing to contribute more than $1000 than Hillary Clinton does. 
@@ -134,9 +224,9 @@ In comparison between the two plots generated for the average contributed amount
 
 In the following plot, I would like to investigate how difference it is between the max, min, median of the contributed amount from all cities within the WA between the two primary candidates. In order to accomplish this, I chose to establish two boxplots to show the interquartile range as well as the median between the two candidates' funds. 
 
-```{r}
-clinton_trump <- subset(washington, washington$cand_id == "P00003392" | washington$cand_id == "P80001571")
-ggplot(aes(x=cand_nm, y=contb_receipt_amt), data=clinton_trump)+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(aes(x=cand_nm, y=contb_receipt_amt), 
+       data=clinton_trump)+
   geom_boxplot()+
   coord_cartesian(ylim = c(0,500))+
   theme_classic()+
@@ -144,10 +234,10 @@ ggplot(aes(x=cand_nm, y=contb_receipt_amt), data=clinton_trump)+
   labs(x="Candidate Name", y="Contributed Amount")
 ```
 
-Donald Trump seems to have a higher financial contributions from donors within the Washington state than Hillary Clinton does. The range of the contributed amounts from his donors is also much wider than Hillary Clinton does. This could potentially imply that whereas Donald Trump may have either  low-class or upper-class people voted for him, Hillary Clinton attracted the attention from this middl-class folsk more during the presidental campaign. 
+Donald Trump seems to have a higher financial contributions from donors within the Washington state than Hillary Clinton does. The range of the contributed amounts from his donors is also much wider than Hillary Clinton does. This could potentially imply that whereas Donald Trump may have either  low-class or upper-class people voted for him, Hillary Clinton attracted the attention from this middle-class folks more during the presidental campaign. 
 
 ####**Contribution from Employers**
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 hillary_by_employers <- hillary_clinton %>%
   filter(contbr_employer != '',
          contbr_employer != 'INFORMATION REQUESTED',
@@ -171,7 +261,8 @@ donald_by_employers <- donald_trump %>%
   top_n(10)
 
 #Plot top 10 employers by total value 
-plot3 <- ggplot(aes(x=contbr_employer, y=n), data=hillary_by_employers)+
+plot3 <- ggplot(aes(x=contbr_employer, y=n), 
+                data=hillary_by_employers)+
   geom_bar(stat='identity')+
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=.4))+
   labs(x="Employer", y="Total Contributed Amount")+
@@ -184,12 +275,14 @@ plot4 <- ggplot(aes(x=contbr_employer, y=n), data=donald_by_employers)+
   labs(x="Employer", y="Total Contributed Amount")+
   ggtitle("Donald Trump")
   
-grid.arrange(plot3, plot4, ncol = 2, top = textGrob("Total Contributed Amount by Employer in WA", gp=gpar(fontsize=20, font=2)))
+grid.arrange(plot3, plot4, ncol = 2, 
+             top = textGrob("Total Contributed Amount by Employer in WA", 
+                            gp=gpar(fontsize=13, font=2)))
 ```
 
 I notice that Self-Employed is by far the most contributing group of all employers to both candicates, which is a bit strange in the case of Hillary Clinton since self-employed citizens tend to vote for the GOP candidate. With this in mind, I decide to omit the self-employed group out of my plots and then make the comparison between the two candidates. 
 
-```{r}
+```{r echo=FALSE, message=FALSE, warning=FALSE}
 hillary_by_employers_noself <- hillary_by_employers %>%
   filter(contbr_employer != 'SELF-EMPLOYED')%>%
   group_by(contbr_employer) %>%
@@ -203,35 +296,42 @@ donald_by_employers_noself <- donald_by_employers %>%
   top_n(10)
 
 #Plot top 10 employers by total value without self-employed
-plot5 <- ggplot(aes(x=contbr_employer, y=n), data=hillary_by_employers_noself)+
+plot5 <- ggplot(aes(x=contbr_employer, y=n), 
+                data=hillary_by_employers_noself)+
   geom_bar(stat='identity')+
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=.4))+
   labs(x="Employer", y="Total Contributed Amount")+
   ggtitle("Hillary Clinton")
  
 
-plot6 <- ggplot(aes(x=contbr_employer, y=n), data=donald_by_employers_noself)+
+plot6 <- ggplot(aes(x=contbr_employer, y=n), 
+                data=donald_by_employers_noself)+
   geom_bar(stat='identity')+
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=.4))+ 
   labs(x="Employer", y="Total Contributed Amount")+
   ggtitle("Donald Trump")
   
-grid.arrange(plot5, plot6, ncol = 2, top = textGrob("Total Contributed Amount by Employers in WA", gp=gpar(fontsize=20, font=2)))
+grid.arrange(plot5, plot6, ncol = 2, 
+             top = textGrob("Total Contributed Amount by Employers in WA", 
+                            gp=gpar(fontsize=13, font=2)))
 ```
 
 The two bar charts generated for the two candidates in term of the total contributed amount by employer clearly show where the majority of the money is coming from for each candidate. While Microsoft, Amazon, and Univerrsities tend to donate more money to Hillary Clinton, homemaker companies contributed more money to Donald Trump's campaign. This is not really surprising since Hillary Clinton's Campaign is more liberal to immigrants and foreing relations which are the two beneficial factors for tech companies and academia. This could explain why there is a much more portion of contributed money coming from these groups versus the others. On the other hand, Donald Trump is a well-known businessman, whose campaign focuses on reducing taxes for business owneers. This fact could potentially explain why homemaking industry wants to donate more money for him to win the election. 
 
+
 ####**Contribution Over Time**
 In the following section, I would like to investigate how the financial contribution from donors across the Washington state changes over time for each primary candidate. In order to accomplish this, I first convert all the dates from string to the Date datatype. I then use geom_smooth to smooth my data between the contributed amount and the corresponding date for each candidate. 
 
-```{r echo=FALSE, Bivariate_Plots}
-
-hillary_clinton$contb_receipt_dt <- as.Date(hillary_clinton$contb_receipt_dt, "%d-%b-%Y")
+```{r echo=FALSE, message=FALSE, warning=FALSE, Multivariate }
+hillary_clinton$contb_receipt_dt <- as.Date(hillary_clinton$contb_receipt_dt, 
+                                            "%d-%b-%Y")
 hillary_clinton <- na.omit(hillary_clinton)
-donald_trump$contb_receipt_dt <- as.Date(donald_trump$contb_receipt_dt, "%d-%b-%Y")
+donald_trump$contb_receipt_dt <- as.Date(donald_trump$contb_receipt_dt, 
+                                         "%d-%b-%Y")
 donald_trump <- na.omit(donald_trump)
 
-plot7 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt), data=hillary_clinton) +
+plot7 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt), 
+               data=hillary_clinton) +
   geom_point(color = 'blue') +
   geom_smooth(formula = contb_receipt_amt ~ contb_receipt_dt, color = 'red')+
   scale_x_date(date_labels = "%b-%d-%Y", 
@@ -242,7 +342,8 @@ plot7 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt), data=hillary_clinto
   ggtitle("Hillary Clinton")
 
 
-plot8 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt), data=donald_trump) +
+plot8 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt), 
+               data=donald_trump) +
   geom_point(color = 'purple') +
   geom_smooth(formula = contb_receipt_amt ~ contb_receipt_dt)+
   scale_x_date(date_labels = "%b-%d-%Y", 
@@ -252,14 +353,17 @@ plot8 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt), data=donald_trump) 
   theme(axis.text.x = element_text(angle = 90, hjust = 1))+
   ggtitle("Donald Trump")
 
-grid.arrange(plot7, plot8, ncol = 2, top = textGrob("Contribution Over Time Since April 12, 2015", gp=gpar(fontsize=20, font=2)))
+grid.arrange(plot7, plot8, ncol = 2, 
+             top = textGrob("Contribution Over Time Since April 12, 2015", 
+                            gp=gpar(fontsize=13, font=2)))
 ```
 
 One thing that I noticed from these two plots is that there is overplotting. So I decided to add a little bit of transparency and position jitter to avoid falling to false conclusions.
 
-```{r}
-plot9 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt), data=hillary_clinton) +
-  geom_point(alpha = 0.3, position = 'jitter', color = 'blue') +
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+plot9 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt), 
+               data=hillary_clinton) +
+  geom_point(alpha = 0.2, position = 'jitter', color = 'blue') +
   geom_smooth(formula = contb_receipt_amt ~ contb_receipt_dt, color = 'red')+
   scale_x_date(date_labels = "%b-%d-%Y", 
                breaks = date_breaks("1 months"), 
@@ -268,8 +372,9 @@ plot9 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt), data=hillary_clinto
   theme(axis.text.x = element_text(angle = 90, hjust = 1))+
   ggtitle("Hillary Clinton")
 
-plot10 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt), data=donald_trump) +
-  geom_point(alpha = 0.3, position = 'jitter', color = 'purple') +
+plot10 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt), 
+                data=donald_trump) +
+  geom_point(alpha = 0.2, position = 'jitter', color = 'purple') +
   geom_smooth(formula = contb_receipt_amt ~ contb_receipt_dt)+
   scale_x_date(date_labels = "%b-%d-%Y", 
                breaks = date_breaks("1 months"), 
@@ -278,22 +383,68 @@ plot10 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt), data=donald_trump)
   theme(axis.text.x = element_text(angle = 90, hjust = 1))+
   ggtitle("Donald Trump")
 
-grid.arrange(plot9, plot10, ncol = 2, top = textGrob("Contribution Over Time Since April 12, 2015", gp=gpar(fontsize=20, font=2)))
+grid.arrange(plot9, plot10, ncol = 2, 
+             top = textGrob("Contribution Over Time Since April 12, 2015",
+                            gp=gpar(fontsize=13, font=2)))
 ```
 
 The two generated multidimensional plots show that: 
 + Donald Trump started his campaign later than Hillary Clinton did, which is a true fact. However, it is still surprising to me up to this date that he won the election over her. 
 + Hillary Clinton got more money at the very beginning of her campaign within the Washington state. However, the contributed amount decreased since June of 2015 and stayed constant till later. 
 + Donald Trump also made more money at the beginning of his campaign within the Washington state. However, the contributed amount fluctuated and did not stay stable throughout his entire campaign in the Washington state. 
-------
+
+####**Contribution by Occupation**
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+#Make a new dataset with the total contribution by 
+#occupation for each candidate
+
+num_by_occup <- clinton_trump %>%
+  filter(contbr_occupation != '',
+         contbr_occupation != 'INFORMATION REQUESTED') %>%
+  group_by(cand_nm, contbr_occupation) %>%
+  tally(contb_receipt_amt) %>%
+  arrange(desc(n)) %>%
+  top_n(10)
+
+#Plot the total contribution by occupation 
+
+ggplot(aes(y =n , x = contbr_occupation, fill = cand_nm), 
+       data = num_by_occup)+
+  geom_bar(stat = 'identity', aes(color = cand_nm))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  labs(x="contributor's occupation", y = "contributed amount in $US")+
+  ggtitle("Total Contribution by Occupation")
+
+
+contribution_top_occups <- filter(clinton_trump,
+                                  contbr_occupation %in% 
+                                    num_by_occup[['contbr_occupation']])
+
+ggplot(aes(x=contbr_occupation,
+           y=contb_receipt_amt, 
+           fill = cand_nm),
+       data=contribution_top_occups) +
+  geom_boxplot(outlier.size = 0.5, aes(color=cand_nm), 
+               colour = "black") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = .4))+
+  ggtitle("Total Contribution by Top Occupation")+
+  scale_y_continuous(limits = c(0,1000))+
+  labs(y="contributed amount in $US", x="contributor's occupation")
+```
+
+While the bar plot shows that the total contributed amount of money of the top occupations tend to be more for Hillary Clinton than that for Trump, the boxplot shows some very interesting facts. 
+1) Trump mostly has a wider range of contributed amount from all occupations than Hillary did. This could mean that there is a conflict of interest in supporting Trump for his campaign within each group. 
+2) The median for Trump is higher in most case. This is surprising to me since I would thought that top occupations are those with higher education background, and thus more liberal, and thus would contribute to Hillary more. However, this seems to not be the case. 
+3) CEO group contributes most to both candidates but more so to Trump than to Hillary Clinton, which is interesting. This could mean that Trump's campaign attracts business people more. 
 
 ##**Final Plots and Summary**
 
 ###**Plot One: Contribution from All Cities in WA state**
 
-```{r echo=FALSE, Plot_One}
-clinton_trump <- subset(washington, washington$cand_id == "P00003392" | washington$cand_id == "P80001571")
-ggplot(aes(x=cand_nm, y=contb_receipt_amt), data=clinton_trump)+
+```{r echo=FALSE, warning=FALSE, message=FALSE, Plot_One}
+ggplot(aes(x=cand_nm, y=contb_receipt_amt), 
+       data=clinton_trump)+
   geom_boxplot()+
   coord_cartesian(ylim = c(0,500))+
   theme_classic()+
@@ -305,8 +456,8 @@ ggplot(aes(x=cand_nm, y=contb_receipt_amt), data=clinton_trump)+
 
 These two boxplots show the contribution distribution from donors across Washington state between the two primary candidates. The boxplots show that Donald Trump seems to have a higher financial contributions from donors within the Washington state than Hillary Clinton does. Moreover, the range of the contributed amounts from his donors is also much wider than Hillary Clinton does.  
 
-###**Plot Two: Contribution from Employers**
-```{r echo=FALSE, Plot_Two}
+###**Plot Two:Total Contribution by Employers**
+```{r echo=FALSE, warning=FALSE, message=FALSE, Plot_Two}
 plot3 <- ggplot(aes(x=contbr_employer, y=n), data=hillary_by_employers)+
   geom_bar(stat='identity')+
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=.4))+
@@ -322,7 +473,9 @@ plot4 <- ggplot(aes(x=contbr_employer, y=n), data=donald_by_employers)+
   ggtitle("Donald Trump")+
   coord_cartesian(ylim = c(0,600000))
   
-grid.arrange(plot3, plot4, ncol = 2, top = textGrob("Total Contributed Amount by Employer in WA", gp=gpar(fontsize=20, font=2)))
+grid.arrange(plot3, plot4, ncol = 2, 
+             top = textGrob("Total Contributed Amount by Employer in WA", 
+                            gp=gpar(fontsize=13, font=2)))
 ```
 
 ###**Description Two**
@@ -331,9 +484,10 @@ Plotting the total contribution based on employer within the Washington state op
 
 ###**Plot Three**
 
-```{r echo=FALSE, Plot_Three}
-plot9 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt), data=hillary_clinton) +
-  geom_point(alpha = 0.3, position = 'jitter', color = 'blue') +
+```{r echo=FALSE, warning=FALSE, message=FALSE, Plot_Three}
+plot9 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt), 
+               data=hillary_clinton) +
+  geom_point(alpha = 0.2, position = 'jitter', color = 'blue') +
   geom_smooth(formula = contb_receipt_amt ~ contb_receipt_dt, color = 'red')+
   scale_x_date(date_labels = "%b-%d-%Y", 
                breaks = date_breaks("1 months"), 
@@ -342,8 +496,9 @@ plot9 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt), data=hillary_clinto
   theme(axis.text.x = element_text(angle = 90, hjust = 1))+
   ggtitle("Hillary Clinton")
 
-plot10 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt), data=donald_trump) +
-  geom_point(alpha = 0.3, position = 'jitter', color = 'purple') +
+plot10 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt),
+                data=donald_trump) +
+  geom_point(alpha = 0.2, position = 'jitter', color = 'purple') +
   geom_smooth(formula = contb_receipt_amt ~ contb_receipt_dt)+
   scale_x_date(date_labels = "%b-%d-%Y", 
                breaks = date_breaks("1 months"), 
@@ -352,7 +507,9 @@ plot10 <-ggplot(aes(x=contb_receipt_dt, y=contb_receipt_amt), data=donald_trump)
   theme(axis.text.x = element_text(angle = 90, hjust = 1))+
   ggtitle("Donald Trump")
 
-grid.arrange(plot9, plot10, ncol = 2, top = textGrob("Contribution Over Time Since April 12, 2015", gp=gpar(fontsize=20, font=2)))
+grid.arrange(plot9, plot10, ncol = 2, 
+             top = textGrob("Contribution Over Time Since April 12, 2015", 
+                            gp=gpar(fontsize=13, font=2)))
 ```
 
 ###**Description Three**
@@ -362,7 +519,9 @@ These time-series plots show how the contribution from all donors changes over t
 ##**Reflection**
 The 2016 presidential campaign contributions dataset within the Washington state contains over 289901 entrie from April 2015 till December 2016. I started my data exploratory section by study the official dataset format through a density plot and basic descriptive statistical analysis. I then post questions and analyze the questions as I go. Moreover, I also accomplish getting new question out of the old ones, which is an important skill for a data analyst in my opinion. 
 
-In addition, I also conducted some filteration steps to omit all entries above the $2700 contribution limit as they break the Federal Election Campaign Act and thus were refunded. I then investigate and explore contribution numbers and amounts across a number of variables including employer, cities, and time.
+In addition, I also conducted some filteration steps to omit all entries above the $2700 contribution limit as they break the Federal Election Campaign Act and thus were refunded. I then investigate and explore contribution numbers and amounts across a number of variables including employer, cities, and time. The most diffcult part in investigating this project is dealing with categorical data. I found it very challenging to present and work with categorical data than numerical data. 
+
+During my analysis, I found it very interesting to the top occupational folks donate more money to Donald Trump than to Hillary Clinton. This is a surprising fact since the top occupations are highly educated, which are usually considered to be liberal, and thus support the democratic party's candidate more. However, based on the number of contributions per day barplot, it shows that Hillary has more contributions per day than Trump does, which implies she is much more favored than he is within the Washington state.  
 
 The self-employed are clearly, by far, the largest contributors to both candidates'campaign. However, this is surprising fact in the case of Hillary Clinton since Republicans are roughly 50% more likely to be self-employed. However, as the self-employed was taken out of the plots, it shows a different distribution in term of the financial contributions from different groups of employe. Specifically,among all employers, tech companies and univervsity tend to contribute more to Hillary Clinton's campaign while homemakers is the most contributing group in the case of Donald Trump. This fact could be explained by the context of ideas between the two candidates for how they ran their campaign, which could attract different groups. 
 
