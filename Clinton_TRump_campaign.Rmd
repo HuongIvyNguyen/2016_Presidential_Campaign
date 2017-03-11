@@ -11,6 +11,8 @@ American voted for Donald J. Trump to be the 45th president of the United States
 ```{r global_options, include=FALSE}
 knitr::opts_chunk$set(echo=FALSE, warning=FALSE, message=FALSE)
 
+options(scipen=999)
+
 setwd("~/Documents/udacity_data_analyst/p4")
 require(ggplot2)
 require(grid)
@@ -312,6 +314,11 @@ donald_by_employers <- donald_trump %>%
   tally(contb_receipt_amt) %>%
   arrange(desc(n))%>%
   top_n(10)
+
+#Change self employed to self-employed in donald_by_employers dataset
+
+donald_by_employers$contbr_employer[donald_by_employers$contbr_employer 
+                    == 'SELF EMPLOYED'] <- c('SELF-EMPLOYED') 
 
 #Plot top 10 employers by total value 
 plot3 <- ggplot(aes(x=contbr_employer, y=n), 
@@ -675,22 +682,24 @@ These two boxplots show the contribution distribution from donors across Washing
 
 ###**Plot Two:Total Contribution by Employers**
 
-```{r echo=FALSE, warning=FALSE, message=FALSE, Plot_Two}
+```{r echo=FALSE, warning=FALSE, message=FALSE, fig.width=12, Plot_Two}
 plot3 <- ggplot(aes(x=contbr_employer, y=n), data=hillary_by_employers)+
   geom_bar(stat='identity')+
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=.4))+
-  labs(x="Employer", y="Total Contributed Amount in $US")+
+  labs(x="Employer", y="Contributed Amount in $US")+
   ggtitle("Hillary Clinton") +
   coord_cartesian(ylim = c(0,600000))+
+  scale_y_log10()+
   coord_flip()
  
 
 plot4 <- ggplot(aes(x=contbr_employer, y=n), data=donald_by_employers)+
   geom_bar(stat='identity')+
   theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=.4))+ 
-  labs(x="Employer", y="Total Contributed Amount in $US")+
+  labs(x="Employer", y="Contributed Amount in $US")+
   ggtitle("Donald Trump")+
   coord_cartesian(ylim = c(0,600000))+
+  scale_y_log10()+
   coord_flip()
   
 grid.arrange(plot3, plot4, ncol = 2, 
